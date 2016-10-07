@@ -3,7 +3,8 @@ from __future__ import print_function
 import os
 import numpy as np
 import zipfile
-from collections import Counter
+import random
+from collections import Counter, deque
 import tensorflow as tf
 
 dataset_path = 'dataset/'
@@ -18,15 +19,8 @@ def read_data(filename):
 
 	return data
 
-words = read_data(dataset)
-
-# print(len(words))
-# 17005207
-
 def build_dataset(words):
 	'''Creating vocabulary(index) of most common [vocabulary_size] words'''
-	# print(len(Counter(words)))
-	# 253854
 	count = [['UNK', -1]]
 	count.extend(Counter(words).most_common(vocabulary_size - 1))
 
@@ -51,4 +45,46 @@ def build_dataset(words):
 
 	return data, count, dictionary, reverse_dictionary
 
-data, count, dictionary, reverse_dictionary = build_dataset(words)
+def generate_batch(batch_size, num_skips, skip_window):
+	'''Generating skip-gram training batch'''
+	global data_index
+	batch = np.ndarray(shape=(batch_size), dtype=np.int32)
+	labels = np.ndarray(shape=(batch_size, 1), dtype=np.int32)
+	span = 2 * skip_window + 1
+	buffer = deque(maxlen=span)
+
+	for _ in xrange(span):
+		buffer.append(data[data_index])
+		data_index = (data_index + 1) % len(data)
+
+	for i in xrange(batch_size / num_skips):
+		target = skip_window
+		targets_to_avoid = [skip_window]
+
+		for j in xrange(num_skips):
+			while target in targets_to_avoid:
+				target = random.randint(0, span - 1)
+
+			targets_to_avoid.append(target)
+
+			batch[i * num_skips + j] = buffer[skip_window]
+			labels[i * num_skips + j, 0] = buffer[target]
+
+		buffer.append(data[data_index])
+		data_index = (data_index + 1) % len(data)
+
+	return batch, labels
+
+if __name__ == '__main__':
+	words = read_data(dataset)
+
+	data, count, dictionary, reverse_dictionary = build_dataset(words)
+
+	print('data:', [reverse_dictionary[x] for x in data[:8]])
+
+	for num_skips, skip_window in [(2, 1), (4, 2)]:
+		data_index = 0
+		batch, labels = generate_batch(8, num_skips, skip_window)
+		print('\nwith num_skips = %d and skip_window = %d' % (num_skips, skip_window))
+		print('\tbatch:', [reverse_dictionary[x] for x in batch])
+		print('\tlabels:', [reverse_dictionary[x] for x in labels.reshape(8)])
