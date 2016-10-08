@@ -7,21 +7,16 @@ import random
 from collections import Counter, deque
 import tensorflow as tf
 
-dataset_path = 'dataset/'
-dataset = 'text8.zip'
-
-vocabulary_size = 50000
-batch_size = 8
 data_index = 0
 
-def read_data(filename):
+def read_data(dataset_path, filename):
 	'''Reading dataset as a list of words'''
 	with zipfile.ZipFile(dataset_path + filename) as f:
 			data = tf.compat.as_str(f.read(f.namelist()[0])).split()
 
 	return data
 
-def build_dataset(words):
+def build_dataset(words, vocabulary_size):
 	'''Creating vocabulary(index) of most common [vocabulary_size] words'''
 	count = [['UNK', -1]]
 	count.extend(Counter(words).most_common(vocabulary_size - 1))
@@ -47,7 +42,7 @@ def build_dataset(words):
 
 	return data, count, dictionary, reverse_dictionary
 
-def generate_batch(batch_size, num_skips, skip_window):
+def generate_batch(data, batch_size, num_skips, skip_window):
 	'''Generating skip-gram training batch'''
 	global data_index
 	batch = np.ndarray(shape=(batch_size), dtype=np.int32)
@@ -78,14 +73,20 @@ def generate_batch(batch_size, num_skips, skip_window):
 	return batch, labels
 
 if __name__ == '__main__':
-	words = read_data(dataset)
+	dataset_path = 'dataset/'
+	dataset = 'text8.zip'
 
-	data, count, dictionary, reverse_dictionary = build_dataset(words)
+	vocabulary_size = 50000
+	batch_size = 8
+
+	words = read_data(dataset_path, dataset)
+
+	data, count, dictionary, reverse_dictionary = build_dataset(words, vocabulary_size)
 
 	for num_skips, skip_window in [(2, 1), (4, 2)]:
 		print('\ndata:', [reverse_dictionary[x] for x in data[data_index:data_index + batch_size]])
 
-		batch, labels = generate_batch(batch_size, num_skips, skip_window)
+		batch, labels = generate_batch(data, batch_size, num_skips, skip_window)
 
 		print('\nwith num_skips = %d and skip_window = %d' % (num_skips, skip_window))
 		print('\tbatch:', [reverse_dictionary[x] for x in batch])
