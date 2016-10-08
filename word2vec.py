@@ -2,7 +2,9 @@ from __future__ import print_function
 
 import math
 import tensorflow as tf
+from sklearn.manifold import TSNE
 from word2vec_input import *
+from word2vec_plot import *
 
 dataset_path = 'dataset/'
 dataset = 'text8.zip'
@@ -13,8 +15,9 @@ skip_window = 1
 num_skips = 2
 num_sampled = 64
 num_steps = 100001
+num_points = 400
 
-def run_training():
+def run_training_or_visualize(param):
 	# Building my graph
 	graph = tf.Graph()
 
@@ -37,30 +40,60 @@ def run_training():
 		# Optimizer
 		optimizer = tf.train.AdagradOptimizer(1.0).minimize(loss)
 
-	with tf.Session(graph=graph) as sess:
-		# Initializing all variables
-		init = tf.initialize_all_variables()
-		sess.run(init)
-		print('Graph Initialized')
+		# Normalizing the final embeddings
+		norm = tf.sqrt(tf.reduce_sum(tf.square(embeddings), 1, keep_dims=True))
+		normalized_embeddings = embeddings / norm
 
-		words = read_data(dataset_path, dataset)
-		data, count, dictionary, reverse_dictionary = build_dataset(words, vocabulary_size)
-		average_loss = 0
+		# Creating saver to write embeddings
+		saver = tf.train.Saver()
 
-		for step in xrange(num_steps):
-			batch_data, batch_labels = generate_batch(data, batch_size, num_skips, skip_window)
+	# Getting dataset
+	words = read_data(dataset_path, dataset)
+	data, count, dictionary, reverse_dictionary = build_dataset(words, vocabulary_size)
 
-			feed_dict = {train_dataset: batch_data, train_labels: batch_labels}
+	if param == 'training':
+		# Training word embeddings
+		with tf.Session(graph=graph) as sess:
+			# Initializing all variables
+			init = tf.initialize_all_variables()
+			sess.run(init)
+			print('Graph Initialized')
 
-			_, l = sess.run([optimizer, loss], feed_dict=feed_dict)
+			average_loss = 0
 
-			average_loss += l
+			for step in xrange(num_steps):
+				batch_data, batch_labels = generate_batch(data, batch_size, num_skips, skip_window)
 
-			if step % 2000 == 0:
-				if step > 0:
-					average_loss /= 2000
+				feed_dict = {train_dataset: batch_data, train_labels: batch_labels}
 
-				print('Average loss at step %d: %f' % (step, average_loss))
+				_, l = sess.run([optimizer, loss], feed_dict=feed_dict)
+
+				average_loss += l
+
+				if step % 2000 == 0:
+					if step > 0:
+						average_loss /= 2000
+
+					print('Average loss at step %d: %f' % (step, average_loss))
+
+			saver.save(sess, 'dataset/embeddings')
+	else:
+		# Visualizing word embeddings
+		with tf.Session(graph=graph) as sess:
+			saver.restore(sess, 'dataset/embeddings')
+			print('Embeddings restored')
+
+			final_embeddings = sess.run(normalized_embeddings)
+
+			tsne = TSNE(perplexity=30, n_components=2, init='pca', n_iter=5000)
+			two_d_embeddings = tsne.fit_transform(final_embeddings[1:num_points+1, :])
+
+			words = [reverse_dictionary[i] for i in xrange(1, num_points+1)]
+
+			plot(two_d_embeddings, words)
+
+			plt.show()
 
 if __name__ == '__main__':
-	run_training()
+	run_training_or_visualize('training')
+	run_training_or_visualize('visualize')
