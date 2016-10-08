@@ -17,7 +17,7 @@ num_sampled = 64
 num_steps = 100001
 num_points = 400
 
-def run_training_or_visualize(param):
+def run(param):
 	# Building my graph
 	graph = tf.Graph()
 
@@ -95,5 +95,5 @@ def run_training_or_visualize(param):
 			plt.show()
 
 if __name__ == '__main__':
-	run_training_or_visualize('training')
-	run_training_or_visualize('visualize')
+	run('training')
+	run('visualization')
