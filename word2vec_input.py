@@ -11,6 +11,8 @@ dataset_path = 'dataset/'
 dataset = 'text8.zip'
 
 vocabulary_size = 50000
+batch_size = 8
+data_index = 0
 
 def read_data(filename):
 	'''Reading dataset as a list of words'''
@@ -80,11 +82,11 @@ if __name__ == '__main__':
 
 	data, count, dictionary, reverse_dictionary = build_dataset(words)
 
-	print('data:', [reverse_dictionary[x] for x in data[:8]])
-
 	for num_skips, skip_window in [(2, 1), (4, 2)]:
-		data_index = 0
-		batch, labels = generate_batch(8, num_skips, skip_window)
+		print('\ndata:', [reverse_dictionary[x] for x in data[data_index:data_index + batch_size]])
+
+		batch, labels = generate_batch(batch_size, num_skips, skip_window)
+
 		print('\nwith num_skips = %d and skip_window = %d' % (num_skips, skip_window))
 		print('\tbatch:', [reverse_dictionary[x] for x in batch])
-		print('\tlabels:', [reverse_dictionary[x] for x in labels.reshape(8)])
+		print('\tlabels:', [reverse_dictionary[x] for x in labels.reshape(batch_size)])
